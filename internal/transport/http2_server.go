@@ -26,6 +26,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -485,6 +486,16 @@ func (t *http2Server) operateHeaders(frame *http2.MetaHeadersFrame, handle func(
 	} else {
 		s.ctx, s.cancel = context.WithCancel(t.ctx)
 	}
+
+	val := &atomic.Value{}
+	s.ctx = context.WithValue(s.ctx, "contextStackTrace", val)
+
+	baseStreamCancel := s.cancel
+	s.cancel = func() {
+		val.Store(debug.Stack())
+		baseStreamCancel()
+	}
+
 	pr := &peer.Peer{
 		Addr: t.remoteAddr,
 	}
